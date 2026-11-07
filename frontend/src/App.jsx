@@ -1,14 +1,18 @@
 import { Routes, Route } from "react-router-dom";
-import Sidebar from "./components/Sidebar";
+import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Placeholder from "./pages/Placeholder";
+import AuthPage from "./pages/AuthPage";
 
 export default function App() {
   return (
-    <div className="flex bg-slate-950 min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-8">
-        <Routes>
+    <Routes>
+      <Route path="/login" element={<AuthPage mode="login" />} />
+      <Route path="/register" element={<AuthPage mode="register" />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/repositories" element={<Placeholder title="Repositories" />} />
           <Route path="/scans" element={<Placeholder title="Security Scans" />} />
@@ -16,8 +20,8 @@ export default function App() {
           <Route path="/pull-requests" element={<Placeholder title="Pull Requests" />} />
           <Route path="/team" element={<Placeholder title="Team" />} />
           <Route path="/settings" element={<Placeholder title="Settings" />} />
-        </Routes>
-      </main>
-    </div>
+        </Route>
+      </Route>
+    </Routes>
   );
 }

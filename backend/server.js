@@ -5,6 +5,7 @@ require("dotenv").config();
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const githubRoutes = require("./routes/githubRoutes");
+const scanRoutes = require("./routes/scanRoutes");
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/github", githubRoutes);
+app.use("/api/scans", scanRoutes);
 
 const PORT = process.env.PORT || 5000;
 

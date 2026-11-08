@@ -1,4 +1,5 @@
 ﻿const Scan = require("../models/Scan");
+const { getOctokitForUser } = require("../utils/octokit");
 
 async function latestScans(userId) {
   const scans = await Scan.find({ user: userId, status: "completed" }).sort("-createdAt");
@@ -29,14 +30,7 @@ exports.getStats = async (req, res) => {
     .sort("-createdAt")
     .limit(5);
 
-  res.json({
-    reposScanned: latest.length,
-    openVulns,
-    prsCreated,
-    totalScans,
-    severity,
-    recentScans,
-  });
+  res.json({ reposScanned: latest.length, openVulns, prsCreated, totalScans, severity, recentScans });
 };
 
 exports.getVulnerabilities = async (req, res) => {
@@ -58,17 +52,40 @@ exports.getVulnerabilities = async (req, res) => {
 exports.getPullRequests = async (req, res) => {
   const scans = await Scan.find({ user: req.user._id, "patch.prUrl": { $exists: true } })
     .select("repoFullName patch updatedAt")
-    .sort("-updatedAt");
+    .sort("-updatedAt")
+    .limit(50);
 
-  res.json({
-    pullRequests: scans.map((s) => ({
-      scanId: s._id,
-      repoFullName: s.repoFullName,
-      prUrl: s.patch.prUrl,
-      prNumber: s.patch.prNumber,
-      changes: (s.patch.summary || []).length,
-      validation: s.patch.validation || [],
-      createdAt: s.updatedAt,
-    })),
-  });
+  let octokit = null;
+  try {
+    octokit = await getOctokitForUser(req.user._id);
+  } catch {
+    octokit = null;
+  }
+
+  const pullRequests = await Promise.all(
+    scans.map(async (s) => {
+      let status = "unknown";
+      if (octokit) {
+        try {
+          const [owner, repo] = s.repoFullName.split("/");
+          const { data } = await octokit.rest.pulls.get({ owner, repo, pull_number: s.patch.prNumber });
+          status = data.merged ? "merged" : data.state;
+        } catch {
+          status = "unknown";
+        }
+      }
+      return {
+        scanId: s._id,
+        repoFullName: s.repoFullName,
+        prUrl: s.patch.prUrl,
+        prNumber: s.patch.prNumber,
+        changes: (s.patch.summary || []).length,
+        validation: s.patch.validation || [],
+        status,
+        createdAt: s.updatedAt,
+      };
+    })
+  );
+
+  res.json({ pullRequests });
 };

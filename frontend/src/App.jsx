@@ -1,9 +1,11 @@
-import { Routes, Route } from "react-router-dom";
+﻿import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Placeholder from "./pages/Placeholder";
 import AuthPage from "./pages/AuthPage";
+import Repositories from "./pages/Repositories";
+import GithubCallback from "./pages/GithubCallback";
 
 export default function App() {
   return (
@@ -14,7 +16,8 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/repositories" element={<Placeholder title="Repositories" />} />
+          <Route path="/repositories" element={<Repositories />} />
+          <Route path="/github/callback" element={<GithubCallback />} />
           <Route path="/scans" element={<Placeholder title="Security Scans" />} />
           <Route path="/vulnerabilities" element={<Placeholder title="Vulnerabilities" />} />
           <Route path="/pull-requests" element={<Placeholder title="Pull Requests" />} />

@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { GitPullRequest } from "lucide-react";
 
 const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
 
@@ -15,6 +16,8 @@ export default function ScanDetail() {
   const { id } = useParams();
   const [scan, setScan] = useState(null);
   const [error, setError] = useState("");
+  const [patching, setPatching] = useState(false);
+  const [patchError, setPatchError] = useState("");
 
   useEffect(() => {
     fetch(`http://localhost:5000/api/scans/${id}`, { headers: authHeader() })
@@ -25,6 +28,24 @@ export default function ScanDetail() {
       })
       .catch((err) => setError(err.message));
   }, [id]);
+
+  const createPatch = async () => {
+    setPatchError("");
+    setPatching(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/scans/${id}/patch`, {
+        method: "POST",
+        headers: authHeader(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setScan({ ...scan, patch: data.patch });
+    } catch (err) {
+      setPatchError(err.message);
+    } finally {
+      setPatching(false);
+    }
+  };
 
   if (error) return <p className="text-red-400">{error}</p>;
   if (!scan) return <p className="text-slate-400">Loading...</p>;
@@ -43,10 +64,33 @@ export default function ScanDetail() {
           <p className="text-slate-400 mb-2">
             {scan.packagesScanned} packages scanned from {scan.source} &middot; {scan.vulnCount} vulnerabilities
           </p>
-          {scan.source === "package.json" && (
+          {scan.source && !scan.source.includes("package-lock.json") && (
             <p className="text-orange-400 text-sm mb-4">
               No package-lock.json found, so versions are approximate (taken from version ranges).
             </p>
+          )}
+
+          {scan.vulnCount > 0 && (
+            <div className="my-4">
+              {scan.patch && scan.patch.prUrl ? (
+                <p className="text-green-400">
+                  Pull Request #{scan.patch.prNumber} created:{" "}
+                  <a href={scan.patch.prUrl} target="_blank" rel="noreferrer" className="underline">
+                    {scan.patch.prUrl}
+                  </a>
+                </p>
+              ) : (
+                <button
+                  onClick={createPatch}
+                  disabled={patching}
+                  className="flex items-center gap-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg"
+                >
+                  <GitPullRequest size={16} />
+                  {patching ? "Creating PR..." : "Create Patch PR"}
+                </button>
+              )}
+              {patchError && <p className="text-red-400 mt-2">{patchError}</p>}
+            </div>
           )}
 
           {scan.vulnCount === 0 ? (
@@ -67,7 +111,10 @@ export default function ScanDetail() {
                 <tbody>
                   {scan.vulnerabilities.map((v, i) => (
                     <tr key={i} className="border-b border-slate-800/60 text-slate-300 align-top">
-                      <td className="py-3">{v.packageName}<p className="text-slate-500 text-xs">{v.folder}</p></td>
+                      <td className="py-3">
+                        {v.packageName}
+                        <p className="text-slate-500 text-xs">{v.folder}</p>
+                      </td>
                       <td>{v.installedVersion}</td>
                       <td>
                         <span className={`px-2 py-1 rounded-full text-xs ${badge[v.severity]}`}>{v.severity}</span>
@@ -96,4 +143,3 @@ export default function ScanDetail() {
     </div>
   );
 }
-

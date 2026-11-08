@@ -24,9 +24,9 @@ const scanSchema = new mongoose.Schema(
     vulnCount: { type: Number, default: 0 },
     vulnerabilities: [vulnSchema],
     error: String,
+    patch: mongoose.Schema.Types.Mixed,
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model("Scan", scanSchema);
-

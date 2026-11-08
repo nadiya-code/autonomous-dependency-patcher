@@ -1,5 +1,13 @@
-﻿const semver = require("semver");
+﻿const fs = require("fs/promises");
+const os = require("os");
+const path = require("path");
+const { execFile } = require("child_process");
+const { promisify } = require("util");
+const semver = require("semver");
 const { getOctokitForUser } = require("../utils/octokit");
+const { runInSandbox } = require("./sandbox");
+
+const exec = promisify(execFile);
 
 function pickFix(installed, fixedVersions) {
   if (!semver.valid(installed)) return null;
@@ -47,6 +55,28 @@ function applyToPackageJson(text, changes) {
   return JSON.stringify(pkg, null, indent) + (text.endsWith("\n") ? "\n" : "");
 }
 
+const folderPath = (srcDir, folder, file) => {
+  const full = path.resolve(srcDir, folder === "(root)" ? "" : folder, file);
+  if (!full.startsWith(path.resolve(srcDir) + path.sep)) throw new Error("Invalid folder path");
+  return full;
+};
+
+const repoPath = (folder, file) => (folder === "(root)" ? file : `${folder}/${file}`);
+
+async function commitFile(octokit, { owner, repo, branch, filePath, content, message }) {
+  let sha;
+  try {
+    const { data } = await octokit.rest.repos.getContent({ owner, repo, path: filePath, ref: branch });
+    sha = data.sha;
+  } catch (e) {
+    if (e.status !== 404) throw e;
+  }
+  await octokit.rest.repos.createOrUpdateFileContents({
+    owner, repo, path: filePath, branch, sha, message,
+    content: Buffer.from(content).toString("base64"),
+  });
+}
+
 exports.createPatch = async (userId, scan) => {
   const [owner, repo] = scan.repoFullName.split("/");
   const octokit = await getOctokitForUser(userId);
@@ -59,61 +89,104 @@ exports.createPatch = async (userId, scan) => {
   const { data: info } = await octokit.rest.repos.get({ owner, repo });
   const base = info.default_branch;
   const { data: ref } = await octokit.rest.git.getRef({ owner, repo, ref: `heads/${base}` });
+  const baseSha = ref.object.sha;
 
-  const branch = `dependency-patch/${Date.now()}`;
-  await octokit.rest.git.createRef({ owner, repo, ref: `refs/heads/${branch}`, sha: ref.object.sha });
+  const workDir = await fs.mkdtemp(path.join(os.tmpdir(), "dg-"));
+  try {
+    // 1. Download and extract the repo at the exact commit we are patching
+    const { data: tar } = await octokit.rest.repos.downloadTarballArchive({ owner, repo, ref: baseSha });
+    const tarPath = path.join(workDir, "repo.tgz");
+    const srcDir = path.join(workDir, "src");
+    await fs.writeFile(tarPath, Buffer.from(tar));
+    await fs.mkdir(srcDir);
+    await exec("tar", ["-xzf", tarPath, "-C", srcDir, "--strip-components=1"]);
 
-  const summary = [];
-  for (const [folder, changes] of Object.entries(plan)) {
-    const path = folder === "(root)" ? "package.json" : `${folder}/package.json`;
-    const { data: file } = await octokit.rest.repos.getContent({ owner, repo, path, ref: branch });
-    const oldText = Buffer.from(file.content, "base64").toString("utf8");
-    const newText = applyToPackageJson(oldText, changes);
-    if (newText === oldText) continue;
+    // 2. Apply the patch locally
+    const summary = [];
+    for (const [folder, changes] of Object.entries(plan)) {
+      const file = folderPath(srcDir, folder, "package.json");
+      const oldText = await fs.readFile(file, "utf8");
+      const newText = applyToPackageJson(oldText, changes);
+      if (newText === oldText) continue;
+      await fs.writeFile(file, newText);
+      for (const [name, c] of Object.entries(changes)) {
+        summary.push({ folder, name, from: c.from, to: c.to, type: c.direct ? "direct" : "override", majorBump: c.majorBump });
+      }
+    }
+    if (summary.length === 0) throw new Error("Nothing to change in package.json files");
 
-    await octokit.rest.repos.createOrUpdateFileContents({
-      owner,
-      repo,
-      path,
-      branch,
-      sha: file.sha,
-      message: `fix(deps): patch vulnerable dependencies in ${folder}`,
-      content: Buffer.from(newText, "utf8").toString("base64"),
+    // 3. Validate inside Docker
+    const folders = [...new Set(summary.map((s) => s.folder))];
+    const validation = [];
+    for (const folder of folders) {
+      const result = await runInSandbox(srcDir, folder);
+      validation.push({ folder, ...result });
+      if (!result.ok) {
+        const err = new Error(
+          `Validation failed at "${result.stage}" in ${folder}. No PR was created.\n\n${result.log}`
+        );
+        err.validation = validation;
+        throw err;
+      }
+    }
+
+    // 4. Validation passed: branch, commit package.json + lockfile, open PR
+    const branch = `dependency-patch/${Date.now()}`;
+    await octokit.rest.git.createRef({ owner, repo, ref: `refs/heads/${branch}`, sha: baseSha });
+
+    for (const folder of folders) {
+      const pkgText = await fs.readFile(folderPath(srcDir, folder, "package.json"));
+      await commitFile(octokit, {
+        owner, repo, branch,
+        filePath: repoPath(folder, "package.json"),
+        content: pkgText,
+        message: `fix(deps): patch vulnerable dependencies in ${folder}`,
+      });
+      try {
+        const lock = await fs.readFile(folderPath(srcDir, folder, "package-lock.json"));
+        await commitFile(octokit, {
+          owner, repo, branch,
+          filePath: repoPath(folder, "package-lock.json"),
+          content: lock,
+          message: `chore(deps): update lockfile in ${folder}`,
+        });
+      } catch (e) {
+        if (e.code !== "ENOENT") throw e;
+      }
+    }
+
+    const rows = summary
+      .map((s) => `| ${s.folder} | ${s.name} | ${s.from} | ${s.to} | ${s.type}${s.majorBump ? " (major bump)" : ""} |`)
+      .join("\n");
+    const vrows = validation
+      .map((v) => `| ${v.folder} | passed | ${v.tests} | ${v.build} |`)
+      .join("\n");
+
+    const body = [
+      "Automated dependency security patch by DependencyGuard.",
+      "",
+      "| Folder | Package | From | To | Change |",
+      "|---|---|---|---|---|",
+      rows,
+      "",
+      "**Sandbox validation (Docker, node:20):**",
+      "",
+      "| Folder | npm install | Tests | Build |",
+      "|---|---|---|---|",
+      vrows,
+      "",
+      "`skipped` means the repository has no such script. package-lock.json was regenerated.",
+      "Review carefully before merging, especially major version bumps.",
+    ].join("\n");
+
+    const { data: pr } = await octokit.rest.pulls.create({
+      owner, repo, head: branch, base,
+      title: "fix(deps): patch vulnerable dependencies",
+      body,
     });
 
-    for (const [name, c] of Object.entries(changes)) {
-      summary.push({ folder, name, from: c.from, to: c.to, type: c.direct ? "direct" : "override", majorBump: c.majorBump });
-    }
+    return { branch, prUrl: pr.html_url, prNumber: pr.number, summary, validation };
+  } finally {
+    await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
-
-  if (summary.length === 0) {
-    await octokit.rest.git.deleteRef({ owner, repo, ref: `heads/${branch}` });
-    throw new Error("Nothing to change in package.json files");
-  }
-
-  const rows = summary
-    .map((s) => `| ${s.folder} | ${s.name} | ${s.from} | ${s.to} | ${s.type}${s.majorBump ? " (major bump)" : ""} |`)
-    .join("\n");
-
-  const body = [
-    "Automated dependency security patch by DependencyGuard.",
-    "",
-    "| Folder | Package | From | To | Change |",
-    "|---|---|---|---|---|",
-    rows,
-    "",
-    "**Warning:** only package.json was changed. package-lock.json was NOT regenerated and tests were NOT run.",
-    "Run `npm install` and your test suite before merging. Review carefully, especially major version bumps.",
-  ].join("\n");
-
-  const { data: pr } = await octokit.rest.pulls.create({
-    owner,
-    repo,
-    title: "fix(deps): patch vulnerable dependencies",
-    head: branch,
-    base,
-    body,
-  });
-
-  return { branch, prUrl: pr.html_url, prNumber: pr.number, summary };
 };

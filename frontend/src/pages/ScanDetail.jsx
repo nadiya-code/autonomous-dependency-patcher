@@ -86,10 +86,10 @@ export default function ScanDetail() {
                   className="flex items-center gap-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg"
                 >
                   <GitPullRequest size={16} />
-                  {patching ? "Creating PR..." : "Create Patch PR"}
+                  {patching ? "Validating in sandbox (may take a few minutes)..." : "Create Patch PR"}
                 </button>
               )}
-              {patchError && <p className="text-red-400 mt-2">{patchError}</p>}
+              {patchError && <pre className="text-red-400 mt-2 text-xs whitespace-pre-wrap">{patchError}</pre>}
             </div>
           )}
 
@@ -143,3 +143,4 @@ export default function ScanDetail() {
     </div>
   );
 }
+

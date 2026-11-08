@@ -50,10 +50,19 @@ exports.createPatch = async (req, res) => {
       return res.status(409).json({ message: "A patch PR already exists for this scan", patch: scan.patch });
     }
 
-    const patch = await createPatch(req.user._id, scan);
-    scan.patch = patch;
-    await scan.save();
-    res.status(201).json({ patch });
+    try {
+      const patch = await createPatch(req.user._id, scan);
+      scan.patch = patch;
+      await scan.save();
+      return res.status(201).json({ patch });
+    } catch (error) {
+      if (error.validation) {
+        scan.patchAttempt = { at: new Date(), validation: error.validation };
+        await scan.save();
+        return res.status(422).json({ message: error.message });
+      }
+      throw error;
+    }
   } catch (error) {
     console.error("Patch error:", error.message);
     const msg = error.status === 403 || error.status === 404

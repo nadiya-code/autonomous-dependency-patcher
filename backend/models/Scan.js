@@ -25,8 +25,10 @@ const scanSchema = new mongoose.Schema(
     vulnerabilities: [vulnSchema],
     error: String,
     patch: mongoose.Schema.Types.Mixed,
+    patchAttempt: mongoose.Schema.Types.Mixed,
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model("Scan", scanSchema);
+

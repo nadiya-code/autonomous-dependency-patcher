@@ -8,6 +8,8 @@ import Repositories from "./pages/Repositories";
 import GithubCallback from "./pages/GithubCallback";
 import Scans from "./pages/Scans";
 import ScanDetail from "./pages/ScanDetail";
+import Vulnerabilities from "./pages/Vulnerabilities";
+import PullRequests from "./pages/PullRequests";
 
 export default function App() {
   return (
@@ -22,8 +24,8 @@ export default function App() {
           <Route path="/github/callback" element={<GithubCallback />} />
           <Route path="/scans" element={<Scans />} />
           <Route path="/scans/:id" element={<ScanDetail />} />
-          <Route path="/vulnerabilities" element={<Placeholder title="Vulnerabilities" />} />
-          <Route path="/pull-requests" element={<Placeholder title="Pull Requests" />} />
+          <Route path="/vulnerabilities" element={<Vulnerabilities />} />
+          <Route path="/pull-requests" element={<PullRequests />} />
           <Route path="/team" element={<Placeholder title="Team" />} />
           <Route path="/settings" element={<Placeholder title="Settings" />} />
         </Route>

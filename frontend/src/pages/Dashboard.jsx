@@ -1,32 +1,52 @@
-import { GitBranch, ShieldAlert, GitPullRequest, CheckCircle2 } from "lucide-react";
+﻿import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { GitBranch, ShieldAlert, GitPullRequest, ScanSearch } from "lucide-react";
 import StatCard from "../components/StatCard";
 
-// Sample data only. Later backend nunchi vasthundi.
-const stats = [
-  { title: "Repositories", value: 12, icon: GitBranch, color: "text-blue-400" },
-  { title: "Open Vulnerabilities", value: 28, icon: ShieldAlert, color: "text-red-400" },
-  { title: "Patches Created", value: 15, icon: CheckCircle2, color: "text-green-400" },
-  { title: "Open Pull Requests", value: 6, icon: GitPullRequest, color: "text-orange-400" },
+const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
+
+const bars = [
+  { key: "CRITICAL", label: "Critical", bar: "bg-red-500" },
+  { key: "HIGH", label: "High", bar: "bg-orange-500" },
+  { key: "MEDIUM", label: "Medium", bar: "bg-yellow-500" },
+  { key: "LOW", label: "Low", bar: "bg-blue-500" },
+  { key: "UNKNOWN", label: "Unknown", bar: "bg-slate-500" },
 ];
 
-const scans = [
-  { repo: "ecommerce-website", date: "Today", found: 5, status: "Completed" },
-  { repo: "student-management", date: "Yesterday", found: 2, status: "Completed" },
-  { repo: "chat-application", date: "2 days ago", found: 0, status: "Failed" },
-];
-
-const severity = [
-  { label: "Critical", count: 3, bar: "bg-red-500" },
-  { label: "High", count: 8, bar: "bg-orange-500" },
-  { label: "Medium", count: 11, bar: "bg-yellow-500" },
-  { label: "Low", count: 6, bar: "bg-blue-500" },
-];
+const statusStyle = {
+  completed: "bg-green-500/10 text-green-400",
+  failed: "bg-red-500/10 text-red-400",
+  running: "bg-yellow-500/10 text-yellow-400",
+};
 
 export default function Dashboard() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/stats", { headers: authHeader() })
+      .then(async (res) => {
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.message);
+        setData(d);
+      })
+      .catch((err) => setError(err.message));
+  }, []);
+
+  if (error) return <p className="text-red-400">{error}</p>;
+  if (!data) return <p className="text-slate-400">Loading...</p>;
+
+  const stats = [
+    { title: "Repositories Scanned", value: data.reposScanned, icon: GitBranch, color: "text-blue-400" },
+    { title: "Open Vulnerabilities", value: data.openVulns, icon: ShieldAlert, color: "text-red-400" },
+    { title: "Patch PRs Created", value: data.prsCreated, icon: GitPullRequest, color: "text-green-400" },
+    { title: "Total Scans", value: data.totalScans, icon: ScanSearch, color: "text-orange-400" },
+  ];
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-white">Security Overview</h1>
-      <p className="text-slate-400 mb-6">Sample data. Real data later connect chestham.</p>
+      <p className="text-slate-400 mb-6">Based on the latest scan of each repository.</p>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => <StatCard key={s.title} {...s} />)}
@@ -35,49 +55,58 @@ export default function Dashboard() {
       <div className="grid gap-4 lg:grid-cols-3 mt-6">
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
           <h2 className="text-white font-semibold mb-4">Recent Scans</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-slate-400 border-b border-slate-800">
-                <th className="pb-2">Repository</th>
-                <th className="pb-2">Date</th>
-                <th className="pb-2">Issues</th>
-                <th className="pb-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scans.map((s) => (
-                <tr key={s.repo} className="border-b border-slate-800/60 text-slate-300">
-                  <td className="py-3">{s.repo}</td>
-                  <td>{s.date}</td>
-                  <td>{s.found}</td>
-                  <td>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      s.status === "Completed"
-                        ? "bg-green-500/10 text-green-400"
-                        : "bg-red-500/10 text-red-400"
-                    }`}>
-                      {s.status}
-                    </span>
-                  </td>
+          {data.recentScans.length === 0 ? (
+            <p className="text-slate-500">No scans yet. Start one from the Repositories page.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-400 border-b border-slate-800">
+                  <th className="pb-2">Repository</th>
+                  <th className="pb-2">Date</th>
+                  <th className="pb-2">Issues</th>
+                  <th className="pb-2">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.recentScans.map((s) => (
+                  <tr key={s._id} className="border-b border-slate-800/60 text-slate-300">
+                    <td className="py-3">
+                      <Link to={`/scans/${s._id}`} className="text-green-400 hover:underline">
+                        {s.repoFullName}
+                      </Link>
+                    </td>
+                    <td>{new Date(s.createdAt).toLocaleDateString()}</td>
+                    <td>{s.vulnCount}</td>
+                    <td>
+                      <span className={`px-2 py-1 rounded-full text-xs ${statusStyle[s.status] || ""}`}>
+                        {s.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <h2 className="text-white font-semibold mb-4">By Severity</h2>
           <div className="space-y-4">
-            {severity.map((s) => (
-              <div key={s.label}>
-                <div className="flex justify-between text-sm text-slate-300 mb-1">
-                  <span>{s.label}</span><span>{s.count}</span>
+            {bars.map((b) => {
+              const count = data.severity[b.key] || 0;
+              const pct = data.openVulns ? (count / data.openVulns) * 100 : 0;
+              return (
+                <div key={b.key}>
+                  <div className="flex justify-between text-sm text-slate-300 mb-1">
+                    <span>{b.label}</span>
+                    <span>{count}</span>
+                  </div>
+                  <div className="h-2 bg-slate-800 rounded-full">
+                    <div className={`h-2 rounded-full ${b.bar}`} style={{ width: `${pct}%` }} />
+                  </div>
                 </div>
-                <div className="h-2 bg-slate-800 rounded-full">
-                  <div className={`h-2 rounded-full ${s.bar}`} style={{ width: `${(s.count / 28) * 100}%` }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

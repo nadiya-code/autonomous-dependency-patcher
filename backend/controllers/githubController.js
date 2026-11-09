@@ -1,29 +1,29 @@
-const jwt = require("jsonwebtoken");
+﻿const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const { encrypt, decrypt } = require("../utils/crypto");
+const { getOctokitForUser } = require("../utils/octokit");
 
 const STATE_SECRET = () => process.env.JWT_SECRET + ":github-state";
 const REDIRECT_URI = () => `${process.env.FRONTEND_URL}/github/callback`;
 
-const getOctokit = async (token) => {
-  const { Octokit } = await import("@octokit/rest");
-  return new Octokit({ auth: token });
-};
-
 exports.getConnectUrl = (req, res) => {
   const state = jwt.sign({ id: String(req.user._id) }, STATE_SECRET(), { expiresIn: "10m" });
-  const params = new URLSearchParams({
-    client_id: process.env.GITHUB_CLIENT_ID,
-    redirect_uri: REDIRECT_URI(),
-    scope: "repo",
-    state,
-  });
-  res.json({ url: `https://github.com/login/oauth/authorize?${params}` });
+
+  if (req.query.mode === "link") {
+    const params = new URLSearchParams({
+      client_id: process.env.GITHUB_APP_CLIENT_ID,
+      redirect_uri: REDIRECT_URI(),
+      state,
+    });
+    return res.json({ url: `https://github.com/login/oauth/authorize?${params}` });
+  }
+
+  const params = new URLSearchParams({ state });
+  res.json({ url: `https://github.com/apps/${process.env.GITHUB_APP_SLUG}/installations/new?${params}` });
 };
 
 exports.callback = async (req, res) => {
   try {
-    const { code, state } = req.body;
+    const { code, state, installation_id } = req.body;
     if (!code || !state) {
       return res.status(400).json({ message: "Missing code or state" });
     }
@@ -42,27 +42,37 @@ exports.callback = async (req, res) => {
       method: "POST",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
       body: JSON.stringify({
-        client_id: process.env.GITHUB_CLIENT_ID,
-        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        client_id: process.env.GITHUB_APP_CLIENT_ID,
+        client_secret: process.env.GITHUB_APP_CLIENT_SECRET,
         code,
         redirect_uri: REDIRECT_URI(),
       }),
     });
     const data = await tokenRes.json();
-
     if (!data.access_token) {
-      return res.status(400).json({ message: data.error_description || "GitHub token exchange failed" });
+      return res.status(400).json({ message: data.error_description || "GitHub authorization failed" });
     }
 
-    const octokit = await getOctokit(data.access_token);
-    const { data: ghUser } = await octokit.rest.users.getAuthenticated();
+    const { Octokit } = await import("@octokit/rest");
+    const userOctokit = new Octokit({ auth: data.access_token });
+    const { data: list } = await userOctokit.rest.apps.listInstallationsForAuthenticatedUser({ per_page: 100 });
+
+    const mine = list.installations.filter((i) => i.app_id === Number(process.env.GITHUB_APP_ID));
+    const inst = installation_id
+      ? mine.find((i) => String(i.id) === String(installation_id))
+      : mine[0];
+
+    if (!inst) {
+      return res.status(400).json({ message: "GitHub App is not installed on your account yet. Click Install first." });
+    }
 
     await User.findByIdAndUpdate(req.user._id, {
-      githubToken: encrypt(data.access_token),
-      githubLogin: ghUser.login,
+      githubInstallationId: inst.id,
+      githubLogin: inst.account.login,
+      $unset: { githubToken: "" },
     });
 
-    res.json({ githubLogin: ghUser.login });
+    res.json({ githubLogin: inst.account.login });
   } catch (error) {
     console.error("GitHub callback error:", error.message);
     res.status(500).json({ message: "Server error" });
@@ -71,20 +81,18 @@ exports.callback = async (req, res) => {
 
 exports.getRepos = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("+githubToken");
-    if (!user.githubToken) {
+    const user = await User.findById(req.user._id);
+    if (!user.githubInstallationId) {
       return res.status(400).json({ connected: false, message: "GitHub not connected" });
     }
 
-    const octokit = await getOctokit(decrypt(user.githubToken));
-    const { data } = await octokit.rest.repos.listForAuthenticatedUser({
-      per_page: 100,
-      sort: "updated",
-    });
+    const octokit = await getOctokitForUser(req.user._id);
+    const repos = await octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, { per_page: 100 });
+    repos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
     res.json({
       githubLogin: user.githubLogin,
-      repos: data.map((r) => ({
+      repos: repos.map((r) => ({
         id: r.id,
         name: r.name,
         fullName: r.full_name,
@@ -96,8 +104,8 @@ exports.getRepos = async (req, res) => {
       })),
     });
   } catch (error) {
-    if (error.status === 401) {
-      return res.status(400).json({ connected: false, message: "GitHub token invalid. Reconnect." });
+    if ([401, 403, 404].includes(error.status)) {
+      return res.status(400).json({ connected: false, message: "GitHub App installation not found. Reconnect." });
     }
     console.error("Get repos error:", error.message);
     res.status(500).json({ message: "Could not fetch repositories" });

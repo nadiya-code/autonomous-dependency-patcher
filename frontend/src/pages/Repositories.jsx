@@ -22,8 +22,8 @@ export default function Repositories() {
       .catch((err) => setState({ error: err.message }));
   }, []);
 
-  const connect = async () => {
-    const res = await fetch(`${API}/github/connect`, { headers: authHeader() });
+  const connect = async (mode = "install") => {
+    const res = await fetch(`${API}/github/connect?mode=${mode}`, { headers: authHeader() });
     const data = await res.json();
     window.location.href = data.url;
   };
@@ -53,12 +53,12 @@ export default function Repositories() {
     return (
       <div>
         <h1 className="text-2xl font-bold text-white">Repositories</h1>
-        <p className="text-slate-400 mt-2 mb-6">Connect your GitHub account to see your repositories.</p>
+        <p className="text-slate-400 mt-2 mb-6">Install the DependencyGuard GitHub App and pick the repositories it can access. Already installed? <button onClick={() => connect("link")} className="text-green-400 underline">Link existing installation</button></p>
         <button
-          onClick={connect}
+          onClick={() => connect("install")}
           className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg"
         >
-          Connect GitHub
+          Install GitHub App
         </button>
       </div>
     );
@@ -113,3 +113,4 @@ export default function Repositories() {
     </div>
   );
 }
+

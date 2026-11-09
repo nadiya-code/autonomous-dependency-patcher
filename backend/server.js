@@ -10,7 +10,7 @@ const githubRoutes = require("./routes/githubRoutes");
 const scanRoutes = require("./routes/scanRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 
-const required = ["MONGO_URI", "JWT_SECRET", "TOKEN_ENC_KEY", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "FRONTEND_URL"];
+const required = ["MONGO_URI", "JWT_SECRET", "TOKEN_ENC_KEY", "GITHUB_APP_ID", "GITHUB_APP_SLUG", "GITHUB_APP_CLIENT_ID", "GITHUB_APP_CLIENT_SECRET", "GITHUB_APP_PRIVATE_KEY_PATH", "FRONTEND_URL"];
 const missing = required.filter((k) => !process.env[k]);
 if (missing.length) {
   console.error("Missing env variables:", missing.join(", "));
@@ -47,3 +47,4 @@ const PORT = process.env.PORT || 5000;
 connectDB().then(() => {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });
+

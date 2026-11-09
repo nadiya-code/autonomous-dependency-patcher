@@ -12,7 +12,7 @@ export default function GithubCallback() {
     ran.current = true;
 
     const code = params.get("code");
-    const state = params.get("state");
+    const state = params.get("state"); const installationId = params.get("installation_id");
     if (!code || !state) {
       setError("Missing code from GitHub");
       return;
@@ -24,7 +24,7 @@ export default function GithubCallback() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
-      body: JSON.stringify({ code, state }),
+      body: JSON.stringify({ code, state, installation_id: installationId }),
     })
       .then(async (res) => {
         const data = await res.json();
@@ -44,3 +44,4 @@ export default function GithubCallback() {
     </div>
   );
 }
+

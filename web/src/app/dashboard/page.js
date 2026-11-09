@@ -65,7 +65,7 @@ export default function Overview() {
 
       <div className="grid gap-4 md:grid-cols-3 mt-4">
         {actions.map((a) => (
-          <Link key={a.href} href={a.href} className="group bg-slate-900 border border-slate-800 hover:border-green-500/40 rounded-xl p-5 transition">
+          <Link key={a.href} href={a.href} className="lift group bg-slate-900 border border-slate-800 hover:border-green-500/40 rounded-xl p-5">
             <a.icon size={20} className="text-green-400" />
             <p className="text-white font-medium mt-3 flex items-center gap-1">{a.title} <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition" /></p>
             <p className="text-slate-500 text-sm mt-1">{a.text}</p>
@@ -112,7 +112,7 @@ export default function Overview() {
               return (
                 <div key={b.key}>
                   <div className="flex justify-between text-sm text-slate-300 mb-1"><span>{b.label}</span><span>{count}</span></div>
-                  <div className="h-2 bg-slate-800 rounded-full"><div className={`h-2 rounded-full ${b.bar}`} style={{ width: `${pct}%` }} /></div>
+                  <div className="h-2 bg-slate-800 rounded-full"><div className={`bar-grow h-2 rounded-full ${b.bar}`} style={{ width: `${pct}%` }} /></div>
                 </div>
               );
             })}
@@ -122,3 +122,6 @@ export default function Overview() {
     </div>
   );
 }
+
+
+

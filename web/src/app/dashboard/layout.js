@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { LogOut, Menu, X, ShieldCheck } from "lucide-react";
 import Sidebar, { NavList } from "@/components/Sidebar";
@@ -12,6 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 export default function DashboardLayout({ children }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -46,9 +47,12 @@ export default function DashboardLayout({ children }) {
               <LogOut size={16} /> Logout
             </button>
           </header>
-          <main className="p-6 md:p-8 max-w-6xl">{children}</main>
+          <main key={pathname} className="animate-fade-in p-6 md:p-8 max-w-6xl">{children}</main>
         </div>
       </div>
     </ToastProvider>
   );
 }
+
+
+

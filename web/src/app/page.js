@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import NavAuth from "@/components/NavAuth";
 import ProductTabs from "@/components/ProductTabs";
+import Reveal from "@/components/Reveal";
 
 const steps = [
   { icon: ScanSearch, title: "Scan", text: "Connect GitHub, pick repositories. We read every package.json and lockfile (monorepos included) and check each dependency against the OSV database." },
@@ -97,21 +98,21 @@ export default function Home() {
 
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(34,197,94,0.20),transparent)]" />
-        <div className="absolute -z-10 top-40 -right-40 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-3xl" />
+        <div className="absolute -z-10 top-40 -right-40 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-3xl animate-float" />
         <div className="max-w-6xl mx-auto px-6 pt-20 pb-20 grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <span className="inline-flex items-center gap-2 text-xs text-green-400 bg-green-500/10 border border-green-500/20 rounded-full px-3 py-1">
+            <span className="animate-fade-up inline-flex items-center gap-2 text-xs text-green-400 bg-green-500/10 border border-green-500/20 rounded-full px-3 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Autonomous dependency security
             </span>
-            <h1 className="mt-6 text-4xl sm:text-6xl font-bold text-white leading-[1.1] tracking-tight">
+            <h1 style={{ animationDelay: "100ms" }} className="animate-fade-up mt-6 text-4xl sm:text-6xl font-bold text-white leading-[1.1] tracking-tight">
               Fix vulnerable dependencies.{" "}
               <span className="bg-gradient-to-r from-green-400 to-emerald-300 bg-clip-text text-transparent">Before they become incidents.</span>
             </h1>
-            <p className="mt-6 text-lg text-slate-400 max-w-xl">
+            <p style={{ animationDelay: "200ms" }} className="animate-fade-up mt-6 text-lg text-slate-400 max-w-xl">
               DependencyGuard scans your repositories, upgrades vulnerable packages, validates the patch in a
               sandbox, and opens a clean pull request. You just review and merge.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div style={{ animationDelay: "300ms" }} className="animate-fade-up mt-8 flex flex-wrap gap-3">
               <Link href="/register" className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-400 text-slate-950 font-semibold px-6 py-3 rounded-lg shadow-lg shadow-green-500/20 transition">
                 Start scanning <ArrowRight size={18} />
               </Link>
@@ -121,7 +122,7 @@ export default function Home() {
             </div>
             <p className="mt-4 text-sm text-slate-500">Works with GitHub. You choose which repositories we can access.</p>
           </div>
-          <ProductTabs />
+          <div style={{ animationDelay: "250ms" }} className="animate-fade-up"><ProductTabs /></div>
         </div>
       </section>
 
@@ -139,7 +140,7 @@ export default function Home() {
         <p className="text-slate-400 mt-3 max-w-2xl">Four steps, with a human review at the end.</p>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mt-12">
           {steps.map((s, i) => (
-            <div key={s.title} className="group bg-slate-900 border border-slate-800 hover:border-green-500/40 rounded-xl p-6 transition">
+            <div key={s.title} className="lift group bg-slate-900 border border-slate-800 hover:border-green-500/40 rounded-xl p-6">
               <div className="flex items-center justify-between">
                 <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center"><s.icon className="text-green-400" size={20} /></div>
                 <span className="text-slate-700 text-2xl font-bold">0{i + 1}</span>
@@ -154,7 +155,7 @@ export default function Home() {
       <section id="features" className="border-y border-slate-800/70 bg-slate-900/30">
         <div className="max-w-6xl mx-auto px-6 py-24 space-y-24">
           {rows.map((r, i) => (
-            <div key={r.title} className="grid lg:grid-cols-2 gap-12 items-center">
+            <Reveal key={r.title}><div className="grid lg:grid-cols-2 gap-12 items-center">
               <div className={i % 2 ? "lg:order-2" : ""}>
                 <span className="inline-flex items-center gap-2 text-xs text-green-400 bg-green-500/10 rounded-full px-3 py-1"><r.icon size={14} /> {r.tag}</span>
                 <h3 className="text-2xl sm:text-3xl font-bold text-white mt-4">{r.title}</h3>
@@ -166,7 +167,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className={`bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl ${i % 2 ? "lg:order-1" : ""}`}>{r.card}</div>
-            </div>
+            </div></Reveal>
           ))}
         </div>
       </section>
@@ -176,7 +177,7 @@ export default function Home() {
         <p className="text-slate-400 mt-3 max-w-2xl">Security tooling should not add risk. Access is minimal, short-lived and under your control.</p>
         <div className="grid md:grid-cols-2 gap-4 mt-12">
           {security.map((s) => (
-            <div key={s.title} className="flex gap-4 bg-slate-900 border border-slate-800 hover:border-green-500/40 rounded-xl p-6 transition">
+            <div key={s.title} className="lift flex gap-4 bg-slate-900 border border-slate-800 hover:border-green-500/40 rounded-xl p-6">
               <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0"><s.icon className="text-green-400" size={20} /></div>
               <div>
                 <h3 className="text-white font-semibold">{s.title}</h3>
@@ -190,7 +191,7 @@ export default function Home() {
       <section id="pricing" className="border-y border-slate-800/70 bg-slate-900/30">
         <div className="max-w-6xl mx-auto px-6 py-24 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-white">Simple pricing for engineering organizations</h2>
-          <div className="max-w-md mx-auto mt-12 bg-slate-900 border border-green-500/30 rounded-2xl p-8 text-left shadow-2xl shadow-green-500/5">
+          <div className="lift max-w-md mx-auto mt-12 bg-slate-900 border border-green-500/30 rounded-2xl p-8 text-left shadow-2xl shadow-green-500/5">
             <p className="text-slate-400 text-sm">Organization plan</p>
             <p className="text-white mt-2"><span className="text-5xl font-bold">$1,500</span><span className="text-slate-400"> / month</span></p>
             <p className="text-slate-500 text-sm mt-1">Per engineering organization</p>
@@ -235,4 +236,5 @@ export default function Home() {
     </div>
   );
 }
+
 

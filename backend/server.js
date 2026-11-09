@@ -22,6 +22,8 @@ if (!/^[0-9a-f]{64}$/i.test(process.env.TOKEN_ENC_KEY)) {
 }
 
 const app = express();
+app.set("trust proxy", 1);
+app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(cors({ origin: process.env.FRONTEND_URL }));
@@ -47,4 +49,6 @@ const PORT = process.env.PORT || 5000;
 connectDB().then(() => {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });
+
+
 

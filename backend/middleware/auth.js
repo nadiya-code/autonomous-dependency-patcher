@@ -1,4 +1,4 @@
-const jwt = require("jsonwebtoken");
+﻿const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 module.exports = async (req, res, next) => {
@@ -15,6 +15,9 @@ module.exports = async (req, res, next) => {
 
     if (!user) {
       return res.status(401).json({ message: "User not found" });
+    }
+    if (user.disabled) {
+      return res.status(403).json({ message: "This account has been disabled." });
     }
 
     req.user = user;

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, GitBranch, ScanSearch, ShieldAlert, GitPullRequest, Users, Settings, ShieldCheck,
+  LayoutDashboard, GitBranch, ScanSearch, ShieldAlert, GitPullRequest, Users, Settings, ShieldCheck, KeyRound,
 } from "lucide-react";
 
 export const navLinks = [
@@ -16,13 +16,14 @@ export const navLinks = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
-export function NavList({ onNavigate }) {
+export function NavList({ onNavigate, isAdmin }) {
   const pathname = usePathname();
   const active = (href) => (href === "/dashboard" ? pathname === href : pathname.startsWith(href));
+  const links = isAdmin ? [...navLinks, { href: "/admin", label: "Admin panel", icon: KeyRound }] : navLinks;
 
   return (
     <nav className="space-y-1">
-      {navLinks.map(({ href, label, icon: Icon }) => (
+      {links.map(({ href, label, icon: Icon }) => (
         <Link
           key={href}
           href={href}
@@ -46,7 +47,7 @@ export default function Sidebar({ user }) {
         <ShieldCheck className="text-green-400" size={28} />
         <span className="text-white font-bold text-lg">DependencyGuard</span>
       </Link>
-      <NavList />
+      <NavList isAdmin={user?.isPlatformAdmin} />
       <div className="mt-auto flex items-center gap-3 bg-slate-800/50 border border-slate-800 rounded-xl p-3">
         <div className="w-9 h-9 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center font-semibold">
           {user?.name?.[0]?.toUpperCase() || "U"}

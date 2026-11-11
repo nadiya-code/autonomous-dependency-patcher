@@ -1,9 +1,17 @@
-const bcrypt = require("bcryptjs");
+﻿const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 const createToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+const publicUser = (u) => ({
+  id: u._id,
+  name: u.name,
+  email: u.email,
+  role: u.role,
+  isPlatformAdmin: !!u.isPlatformAdmin,
+});
 
 exports.register = async (req, res) => {
   try {
@@ -24,10 +32,7 @@ exports.register = async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({ name, email, password: hashed });
 
-    res.status(201).json({
-      token: createToken(user._id),
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
-    });
+    res.status(201).json({ token: createToken(user._id), user: publicUser(user) });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -43,11 +48,11 @@ exports.login = async (req, res) => {
     if (!valid) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
+    if (user.disabled) {
+      return res.status(403).json({ message: "This account has been disabled." });
+    }
 
-    res.json({
-      token: createToken(user._id),
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
-    });
+    res.json({ token: createToken(user._id), user: publicUser(user) });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }

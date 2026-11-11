@@ -34,7 +34,7 @@ export default function DashboardLayout({ children }) {
                 <Link href="/" className="flex items-center gap-2 text-white font-bold"><ShieldCheck className="text-green-400" size={24} /> DependencyGuard</Link>
                 <button onClick={() => setOpen(false)} className="text-slate-400"><X size={20} /></button>
               </div>
-              <NavList onNavigate={() => setOpen(false)} />
+              <NavList onNavigate={() => setOpen(false)} isAdmin={user.isPlatformAdmin} />
             </div>
           </div>
         )}
@@ -53,6 +53,7 @@ export default function DashboardLayout({ children }) {
     </ToastProvider>
   );
 }
+
 
 
 

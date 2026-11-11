@@ -112,3 +112,24 @@ exports.listScans = async (req, res) => {
     })),
   });
 };
+
+exports.setAdmin = async (req, res) => {
+  const { isPlatformAdmin } = req.body;
+  if (typeof isPlatformAdmin !== "boolean") {
+    return res.status(400).json({ message: "isPlatformAdmin must be true or false" });
+  }
+  if (String(req.params.id) === String(req.user._id)) {
+    return res.status(400).json({ message: "You cannot change your own admin status" });
+  }
+  try {
+    const target = await User.findById(req.params.id);
+    if (!target) return res.status(404).json({ message: "User not found" });
+    if (isPlatformAdmin && target.disabled) {
+      return res.status(400).json({ message: "Enable this account before making it admin" });
+    }
+    await User.updateOne({ _id: target._id }, { $set: { isPlatformAdmin } });
+    res.json({ ok: true, isPlatformAdmin });
+  } catch {
+    res.status(404).json({ message: "User not found" });
+  }
+};

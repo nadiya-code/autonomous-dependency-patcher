@@ -17,22 +17,34 @@ export default function AdminUsers() {
   const load = () => apiFetch("/admin/users").then((d) => setUsers(d.users)).catch((e) => setError(e.message));
   useEffect(() => { load(); }, []);
 
-  const toggle = async (u) => {
-    const next = !u.disabled;
-    if (next && !window.confirm(`Disable ${u.email}? They will be logged out of API access.`)) return;
+  const patch = async (u, path, body, patchLocal, message) => {
     try {
-      await apiFetch(`/admin/users/${u._id}`, { method: "PATCH", body: JSON.stringify({ disabled: next }) });
-      setUsers((list) => list.map((x) => (x._id === u._id ? { ...x, disabled: next } : x)));
-      toast(next ? "User disabled" : "User enabled");
+      await apiFetch(`/admin/users/${u._id}${path}`, { method: "PATCH", body: JSON.stringify(body) });
+      setUsers((list) => list.map((x) => (x._id === u._id ? { ...x, ...patchLocal } : x)));
+      toast(message);
     } catch (e) {
       toast(e.message, "error");
     }
+  };
+
+  const toggleDisabled = (u) => {
+    const next = !u.disabled;
+    if (next && !window.confirm(`Disable ${u.email}?`)) return;
+    patch(u, "", { disabled: next }, { disabled: next }, next ? "User disabled" : "User enabled");
+  };
+
+  const toggleAdmin = (u) => {
+    const next = !u.isPlatformAdmin;
+    const text = next ? `Make ${u.email} an admin? They will see all users and scans.` : `Remove admin access from ${u.email}?`;
+    if (!window.confirm(text)) return;
+    patch(u, "/admin", { isPlatformAdmin: next }, { isPlatformAdmin: next }, next ? "Admin added" : "Admin removed");
   };
 
   if (error) return <ErrorBox message={error} />;
   if (!users) return <PageSkeleton />;
 
   const shown = users.filter((u) => (u.email + u.name).toLowerCase().includes(q.toLowerCase()));
+  const isMe = (u) => String(u._id) === String(me?.id);
 
   return (
     <div>
@@ -67,11 +79,18 @@ export default function AdminUsers() {
                       {u.disabled ? "disabled" : "active"}
                     </span>
                   </td>
-                  <td className="text-right">
-                    {!u.isPlatformAdmin && String(u._id) !== String(me?.id) && (
-                      <button onClick={() => toggle(u)} className="text-xs text-slate-300 hover:text-white border border-slate-700 rounded-lg px-3 py-1">
-                        {u.disabled ? "Enable" : "Disable"}
-                      </button>
+                  <td className="text-right whitespace-nowrap">
+                    {!isMe(u) && (
+                      <>
+                        <button onClick={() => toggleAdmin(u)} className="text-xs text-slate-300 hover:text-white border border-slate-700 rounded-lg px-3 py-1 mr-2">
+                          {u.isPlatformAdmin ? "Remove admin" : "Make admin"}
+                        </button>
+                        {!u.isPlatformAdmin && (
+                          <button onClick={() => toggleDisabled(u)} className="text-xs text-slate-300 hover:text-white border border-slate-700 rounded-lg px-3 py-1">
+                            {u.disabled ? "Enable" : "Disable"}
+                          </button>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>

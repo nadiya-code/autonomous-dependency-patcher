@@ -6,12 +6,13 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 8 },
     role: { type: String, enum: ["admin", "member"], default: "admin" },
-    githubLogin: { type: String }, githubInstallationId: { type: Number }, isPlatformAdmin: { type: Boolean, default: false }, disabled: { type: Boolean, default: false },
+    githubLogin: { type: String }, githubInstallationId: { type: Number }, isPlatformAdmin: { type: Boolean, default: false }, isOwner: { type: Boolean, default: false }, disabled: { type: Boolean, default: false },
     githubToken: { type: String, select: false },
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model("User", userSchema);
+
 
 

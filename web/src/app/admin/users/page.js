@@ -43,8 +43,9 @@ export default function AdminUsers() {
   if (error) return <ErrorBox message={error} />;
   if (!users) return <PageSkeleton />;
 
+  const myId = String(me?.id || me?._id || "");
+  const iAmOwner = !!me?.isOwner;
   const shown = users.filter((u) => (u.email + u.name).toLowerCase().includes(q.toLowerCase()));
-  const isMe = (u) => String(u._id) === String(me?.id);
 
   return (
     <div>
@@ -64,37 +65,47 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody>
-              {shown.map((u) => (
-                <tr key={u._id} className="border-b border-slate-800/60 text-slate-300">
-                  <td className="py-3">
-                    {u.name} {u.isPlatformAdmin && <span className="ml-1 text-[10px] bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded">admin</span>}
-                    <p className="text-slate-500 text-xs">{u.email}</p>
-                  </td>
-                  <td>{u.githubLogin || "-"}</td>
-                  <td>{u.scans}</td>
-                  <td>{u.prs}</td>
-                  <td>{new Date(u.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <span className={`px-2 py-1 rounded-full text-xs ${u.disabled ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
-                      {u.disabled ? "disabled" : "active"}
-                    </span>
-                  </td>
-                  <td className="text-right whitespace-nowrap">
-                    {!isMe(u) && (
-                      <>
-                        <button onClick={() => toggleAdmin(u)} className="text-xs text-slate-300 hover:text-white border border-slate-700 rounded-lg px-3 py-1 mr-2">
-                          {u.isPlatformAdmin ? "Remove admin" : "Make admin"}
-                        </button>
-                        {!u.isPlatformAdmin && (
-                          <button onClick={() => toggleDisabled(u)} className="text-xs text-slate-300 hover:text-white border border-slate-700 rounded-lg px-3 py-1">
-                            {u.disabled ? "Enable" : "Disable"}
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {shown.map((u) => {
+                const self = String(u._id) === myId;
+                return (
+                  <tr key={u._id} className="border-b border-slate-800/60 text-slate-300">
+                    <td className="py-3">
+                      {u.name}{" "}
+                      {u.isOwner ? (
+                        <span className="ml-1 text-[10px] bg-yellow-500/10 text-yellow-400 px-1.5 py-0.5 rounded">owner</span>
+                      ) : u.isPlatformAdmin ? (
+                        <span className="ml-1 text-[10px] bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded">admin</span>
+                      ) : null}
+                      <p className="text-slate-500 text-xs">{u.email}</p>
+                    </td>
+                    <td>{u.githubLogin || "-"}</td>
+                    <td>{u.scans}</td>
+                    <td>{u.prs}</td>
+                    <td>{new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td>
+                      <span className={`px-2 py-1 rounded-full text-xs ${u.disabled ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
+                        {u.disabled ? "disabled" : "active"}
+                      </span>
+                    </td>
+                    <td className="text-right whitespace-nowrap">
+                      {!self && !u.isOwner && (
+                        <>
+                          {iAmOwner && (
+                            <button onClick={() => toggleAdmin(u)} className="text-xs text-slate-300 hover:text-white border border-slate-700 rounded-lg px-3 py-1 mr-2">
+                              {u.isPlatformAdmin ? "Remove admin" : "Make admin"}
+                            </button>
+                          )}
+                          {!u.isPlatformAdmin && (
+                            <button onClick={() => toggleDisabled(u)} className="text-xs text-slate-300 hover:text-white border border-slate-700 rounded-lg px-3 py-1">
+                              {u.disabled ? "Enable" : "Disable"}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -43,7 +43,7 @@ exports.getStats = async (req, res) => {
 
 exports.listUsers = async (req, res) => {
   const users = await User.find()
-    .select("name email isPlatformAdmin disabled githubLogin createdAt")
+    .select("name email isPlatformAdmin isOwner disabled githubLogin createdAt")
     .sort("-createdAt")
     .limit(500)
     .lean();
@@ -124,6 +124,9 @@ exports.setAdmin = async (req, res) => {
   try {
     const target = await User.findById(req.params.id);
     if (!target) return res.status(404).json({ message: "User not found" });
+    if (target.isOwner) {
+      return res.status(400).json({ message: "The owner cannot be changed" });
+    }
     if (isPlatformAdmin && target.disabled) {
       return res.status(400).json({ message: "Enable this account before making it admin" });
     }
@@ -133,3 +136,4 @@ exports.setAdmin = async (req, res) => {
     res.status(404).json({ message: "User not found" });
   }
 };
+

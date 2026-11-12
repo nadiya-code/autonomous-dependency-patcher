@@ -12,6 +12,7 @@ const publicUser = (u) => ({
   role: u.role,
   isPlatformAdmin: !!u.isPlatformAdmin,
   isOwner: !!u.isOwner,
+  canManageAdmins: !!u.canManageAdmins,
 });
 
 exports.register = async (req, res) => {
@@ -62,4 +63,5 @@ exports.login = async (req, res) => {
 exports.getMe = async (req, res) => {
   res.json({ user: req.user });
 };
+
 

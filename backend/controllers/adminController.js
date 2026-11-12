@@ -43,7 +43,7 @@ exports.getStats = async (req, res) => {
 
 exports.listUsers = async (req, res) => {
   const users = await User.find()
-    .select("name email isPlatformAdmin isOwner disabled githubLogin createdAt")
+    .select("name email isPlatformAdmin isOwner canManageAdmins disabled githubLogin createdAt")
     .sort("-createdAt")
     .limit(500)
     .lean();
@@ -80,10 +80,64 @@ exports.setDisabled = async (req, res) => {
     const target = await User.findById(req.params.id);
     if (!target) return res.status(404).json({ message: "User not found" });
     if (target.isPlatformAdmin) {
-      return res.status(400).json({ message: "Cannot disable another admin" });
+      return res.status(400).json({ message: "Remove admin access before disabling this account" });
     }
     await User.updateOne({ _id: target._id }, { $set: { disabled } });
     res.json({ ok: true, disabled });
+  } catch {
+    res.status(404).json({ message: "User not found" });
+  }
+};
+
+exports.setAdmin = async (req, res) => {
+  const { isPlatformAdmin } = req.body;
+  if (typeof isPlatformAdmin !== "boolean") {
+    return res.status(400).json({ message: "isPlatformAdmin must be true or false" });
+  }
+  if (String(req.params.id) === String(req.user._id)) {
+    return res.status(400).json({ message: "You cannot change your own admin status" });
+  }
+  try {
+    const target = await User.findById(req.params.id);
+    if (!target) return res.status(404).json({ message: "User not found" });
+    if (target.isOwner) {
+      return res.status(400).json({ message: "The owner cannot be changed" });
+    }
+    if (!req.user.isOwner && target.canManageAdmins) {
+      return res.status(403).json({ message: "Only the owner can change an admin who can manage admins" });
+    }
+    if (isPlatformAdmin && target.disabled) {
+      return res.status(400).json({ message: "Enable this account before making it admin" });
+    }
+    const update = isPlatformAdmin
+      ? { isPlatformAdmin: true }
+      : { isPlatformAdmin: false, canManageAdmins: false };
+    await User.updateOne({ _id: target._id }, { $set: update });
+    res.json({ ok: true, isPlatformAdmin });
+  } catch {
+    res.status(404).json({ message: "User not found" });
+  }
+};
+
+exports.setManageAdmins = async (req, res) => {
+  const { canManageAdmins } = req.body;
+  if (typeof canManageAdmins !== "boolean") {
+    return res.status(400).json({ message: "canManageAdmins must be true or false" });
+  }
+  if (String(req.params.id) === String(req.user._id)) {
+    return res.status(400).json({ message: "You cannot change your own permissions" });
+  }
+  try {
+    const target = await User.findById(req.params.id);
+    if (!target) return res.status(404).json({ message: "User not found" });
+    if (target.isOwner) {
+      return res.status(400).json({ message: "The owner cannot be changed" });
+    }
+    if (canManageAdmins && (!target.isPlatformAdmin || target.disabled)) {
+      return res.status(400).json({ message: "Only active admins can get this permission" });
+    }
+    await User.updateOne({ _id: target._id }, { $set: { canManageAdmins } });
+    res.json({ ok: true, canManageAdmins });
   } catch {
     res.status(404).json({ message: "User not found" });
   }
@@ -112,28 +166,3 @@ exports.listScans = async (req, res) => {
     })),
   });
 };
-
-exports.setAdmin = async (req, res) => {
-  const { isPlatformAdmin } = req.body;
-  if (typeof isPlatformAdmin !== "boolean") {
-    return res.status(400).json({ message: "isPlatformAdmin must be true or false" });
-  }
-  if (String(req.params.id) === String(req.user._id)) {
-    return res.status(400).json({ message: "You cannot change your own admin status" });
-  }
-  try {
-    const target = await User.findById(req.params.id);
-    if (!target) return res.status(404).json({ message: "User not found" });
-    if (target.isOwner) {
-      return res.status(400).json({ message: "The owner cannot be changed" });
-    }
-    if (isPlatformAdmin && target.disabled) {
-      return res.status(400).json({ message: "Enable this account before making it admin" });
-    }
-    await User.updateOne({ _id: target._id }, { $set: { isPlatformAdmin } });
-    res.json({ ok: true, isPlatformAdmin });
-  } catch {
-    res.status(404).json({ message: "User not found" });
-  }
-};
-

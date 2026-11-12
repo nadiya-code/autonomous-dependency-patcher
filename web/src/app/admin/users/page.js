@@ -7,6 +7,8 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { Users } from "lucide-react";
 
+const btn = "text-xs text-slate-300 hover:text-white border border-slate-700 rounded-lg px-3 py-1";
+
 export default function AdminUsers() {
   const toast = useToast();
   const { user: me } = useAuth();
@@ -37,7 +39,19 @@ export default function AdminUsers() {
     const next = !u.isPlatformAdmin;
     const text = next ? `Make ${u.email} an admin? They will see all users and scans.` : `Remove admin access from ${u.email}?`;
     if (!window.confirm(text)) return;
-    patch(u, "/admin", { isPlatformAdmin: next }, { isPlatformAdmin: next }, next ? "Admin added" : "Admin removed");
+    patch(u, "/admin", { isPlatformAdmin: next },
+      next ? { isPlatformAdmin: true } : { isPlatformAdmin: false, canManageAdmins: false },
+      next ? "Admin added" : "Admin removed");
+  };
+
+  const toggleManage = (u) => {
+    const next = !u.canManageAdmins;
+    const text = next
+      ? `Allow ${u.email} to add and remove admins?`
+      : `Remove the manage-admins permission from ${u.email}?`;
+    if (!window.confirm(text)) return;
+    patch(u, "/manage-admins", { canManageAdmins: next }, { canManageAdmins: next },
+      next ? "Permission granted" : "Permission removed");
   };
 
   if (error) return <ErrorBox message={error} />;
@@ -45,6 +59,7 @@ export default function AdminUsers() {
 
   const myId = String(me?.id || me?._id || "");
   const iAmOwner = !!me?.isOwner;
+  const iCanManage = iAmOwner || (!!me?.isPlatformAdmin && !!me?.canManageAdmins);
   const shown = users.filter((u) => (u.email + u.name).toLowerCase().includes(q.toLowerCase()));
 
   return (
@@ -67,6 +82,7 @@ export default function AdminUsers() {
             <tbody>
               {shown.map((u) => {
                 const self = String(u._id) === myId;
+                const canChangeAdminStatus = iCanManage && (iAmOwner || !u.canManageAdmins);
                 return (
                   <tr key={u._id} className="border-b border-slate-800/60 text-slate-300">
                     <td className="py-3">
@@ -76,6 +92,9 @@ export default function AdminUsers() {
                       ) : u.isPlatformAdmin ? (
                         <span className="ml-1 text-[10px] bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded">admin</span>
                       ) : null}
+                      {u.canManageAdmins && !u.isOwner && (
+                        <span className="ml-1 text-[10px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">manages admins</span>
+                      )}
                       <p className="text-slate-500 text-xs">{u.email}</p>
                     </td>
                     <td>{u.githubLogin || "-"}</td>
@@ -87,16 +106,21 @@ export default function AdminUsers() {
                         {u.disabled ? "disabled" : "active"}
                       </span>
                     </td>
-                    <td className="text-right whitespace-nowrap">
+                    <td className="text-right whitespace-nowrap space-x-2">
                       {!self && !u.isOwner && (
                         <>
-                          {iAmOwner && (
-                            <button onClick={() => toggleAdmin(u)} className="text-xs text-slate-300 hover:text-white border border-slate-700 rounded-lg px-3 py-1 mr-2">
+                          {iAmOwner && u.isPlatformAdmin && (
+                            <button onClick={() => toggleManage(u)} className={btn}>
+                              {u.canManageAdmins ? "Revoke admin rights" : "Give admin rights"}
+                            </button>
+                          )}
+                          {canChangeAdminStatus && (
+                            <button onClick={() => toggleAdmin(u)} className={btn}>
                               {u.isPlatformAdmin ? "Remove admin" : "Make admin"}
                             </button>
                           )}
                           {!u.isPlatformAdmin && (
-                            <button onClick={() => toggleDisabled(u)} className="text-xs text-slate-300 hover:text-white border border-slate-700 rounded-lg px-3 py-1">
+                            <button onClick={() => toggleDisabled(u)} className={btn}>
                               {u.disabled ? "Enable" : "Disable"}
                             </button>
                           )}

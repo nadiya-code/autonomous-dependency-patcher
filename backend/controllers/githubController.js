@@ -111,3 +111,15 @@ exports.getRepos = async (req, res) => {
     res.status(500).json({ message: "Could not fetch repositories" });
   }
 };
+
+exports.disconnect = async (req, res) => {
+  try {
+    await User.updateOne(
+      { _id: req.user._id },
+      { $unset: { githubInstallationId: "", githubLogin: "", githubToken: "" } }
+    );
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};

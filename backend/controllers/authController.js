@@ -65,3 +65,38 @@ exports.getMe = async (req, res) => {
 };
 
 
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const name = String(req.body.name || "").trim();
+    if (name.length < 2 || name.length > 80) {
+      return res.status(400).json({ message: "Name must be 2 to 80 characters" });
+    }
+    const user = await User.findByIdAndUpdate(req.user._id, { name }, { new: true }).select("-password");
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Both passwords are required" });
+    }
+    if (newPassword.length < 8 || newPassword.length > 72) {
+      return res.status(400).json({ message: "New password must be 8 to 72 characters" });
+    }
+    const user = await User.findById(req.user._id);
+    const ok = await bcrypt.compare(currentPassword, user.password);
+    if (!ok) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await User.updateOne({ _id: user._id }, { $set: { password: hashed } });
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};

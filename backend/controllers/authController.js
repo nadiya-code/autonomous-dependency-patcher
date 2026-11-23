@@ -11,6 +11,8 @@ const publicUser = (u) => ({
   email: u.email,
   role: u.role,
   isPlatformAdmin: !!u.isPlatformAdmin,
+  githubInstallationId: u.githubInstallationId,
+  githubLogin: u.githubLogin,
   isOwner: !!u.isOwner,
   canManageAdmins: !!u.canManageAdmins,
 });
@@ -100,3 +102,4 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+

@@ -92,6 +92,7 @@ exports.getRepos = async (req, res) => {
 
     res.json({
       githubLogin: user.githubLogin,
+      installationId: user.githubInstallationId,
       repos: repos.map((r) => ({
         id: r.id,
         name: r.name,
@@ -123,3 +124,4 @@ exports.disconnect = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+

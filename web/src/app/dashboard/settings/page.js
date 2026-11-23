@@ -131,7 +131,7 @@ export default function SettingsPage() {
                 className="text-sm text-slate-300 hover:text-white border border-slate-700 rounded-lg px-4 py-2 disabled:opacity-50">
                 {disconnecting ? "Disconnecting..." : "Disconnect"}
               </button>
-              <a href="https://github.com/settings/installations" target="_blank" rel="noreferrer"
+              <a href={`https://github.com/settings/installations/${user.githubInstallationId}`} target="_blank" rel="noreferrer"
                 className="text-sm text-green-400 hover:underline">
                 Manage or uninstall on GitHub
               </a>
@@ -161,3 +161,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

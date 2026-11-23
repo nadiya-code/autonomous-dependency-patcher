@@ -1,28 +1,61 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Globe, ExternalLink, ScanSearch, GitBranch } from "lucide-react";
+import { Lock, Globe, ExternalLink, ScanSearch, GitBranch, RefreshCw, Plus } from "lucide-react";
 import { PageHeader, PageSkeleton, EmptyState, ErrorBox } from "@/components/ui";
 import { useToast } from "@/components/Toast";
+import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
+
+const ghost = "flex items-center gap-2 text-sm text-slate-300 hover:text-white border border-slate-700 rounded-lg px-3 py-1.5 disabled:opacity-50";
 
 export default function Repositories() {
   const router = useRouter();
   const toast = useToast();
+  const { setUser } = useAuth();
   const [state, setState] = useState({ loading: true });
   const [scanning, setScanning] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setRefreshing(true);
+    try {
+      const d = await apiFetch("/github/repos");
+      setState({ connected: true, ...d });
+    } catch (e) {
+      setState(e.status === 400 && e.data?.connected === false ? { connected: false } : { error: e.message });
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    apiFetch("/github/repos")
-      .then((d) => setState({ connected: true, ...d }))
-      .catch((e) => setState(e.status === 400 && e.data?.connected === false ? { connected: false } : { error: e.message }));
-  }, []);
+    load(true);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load(true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [load]);
 
   const connect = async (mode = "install") => {
     try {
       const d = await apiFetch(`/github/connect?mode=${mode}`);
       window.location.href = d.url;
+    } catch (e) {
+      toast(e.message, "error");
+    }
+  };
+
+  const disconnect = async () => {
+    if (!window.confirm("Disconnect GitHub from DependencyGuard? Your scan history is kept.")) return;
+    try {
+      await apiFetch("/github/connection", { method: "DELETE" });
+      const me = await apiFetch("/auth/me");
+      setUser(me.user);
+      setState({ connected: false });
+      toast("GitHub disconnected");
     } catch (e) {
       toast(e.message, "error");
     }
@@ -58,14 +91,34 @@ export default function Repositories() {
     );
   }
 
+  const manageUrl = `https://github.com/settings/installations/${state.installationId}`;
+
   return (
     <div>
       <PageHeader
         title="Repositories"
         subtitle={<>Connected as <span className="text-green-400">{state.githubLogin}</span> · {state.repos.length} repositories</>}
       />
+
+      <div className="flex flex-wrap gap-2 mb-5">
+        <a href={manageUrl} target="_blank" rel="noreferrer" className={ghost}>
+          <Plus size={14} /> Add or remove repositories
+        </a>
+        <button onClick={() => load()} disabled={refreshing} className={ghost}>
+          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> Refresh
+        </button>
+        <button onClick={() => connect("install")} className={ghost}>
+          Install on another account or organization
+        </button>
+        <button onClick={disconnect} className={ghost}>Disconnect</button>
+      </div>
+      <p className="text-xs text-slate-500 -mt-2 mb-5">
+        Repositories are chosen on GitHub. After you change them there, come back to this page and it refreshes automatically.
+        Organization installation? Open it from GitHub, Settings, Applications.
+      </p>
+
       {state.repos.length === 0 ? (
-        <EmptyState icon={GitBranch} title="No repositories selected" text="Add repositories in your GitHub App installation settings." />
+        <EmptyState icon={GitBranch} title="No repositories selected" text="Use Add or remove repositories to choose which repositories DependencyGuard can access." />
       ) : (
         <div className="grid gap-3">
           {state.repos.map((r) => (
